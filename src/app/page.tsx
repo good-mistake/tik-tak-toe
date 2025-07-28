@@ -1,103 +1,388 @@
+"use client";
+import React, { useRef, useState, useEffect } from "react";
+
 import Image from "next/image";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [pick, setPick] = useState<"x" | "o">("x");
+  const [mode, setMode] = useState<"pvp" | "pvc" | null>(null);
+  const [board, setBoard] = useState(Array(9).fill(null));
+  const [rounds, setRounds] = useState<{ win: string | null }[]>([]);
+  const [finish, setFinish] = useState(false);
+  const [turn, setTurn] = useState<"x" | "o">("x");
+  const [resModal, setResModal] = useState(false);
+  const [result, setResult] = useState<"wonX" | "draw" | "wonO" | null>(null);
+  const [winningLine, setWinningLine] = useState<number[] | null>(null);
+  const [hoverindex, setHoverIndex] = useState<number | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+  const minimax = (
+    board: (string | null)[],
+    player: "x" | "o"
+  ): { index: number; score: number } => {
+    const avail = board
+      .map((v, i) => (v === null ? i : null))
+      .filter((i) => i !== null) as number[];
+
+    const { winner } = whoWon(board);
+    if (winner === "x") return { index: -1, score: -10 };
+    if (winner === "o") return { index: -1, score: 10 };
+    if (!avail.length) return { index: -1, score: 0 };
+
+    let bestMove!: { index: number; score: number };
+
+    if (player === "o") {
+      let bestScore = -Infinity;
+      for (const idx of avail) {
+        const b2 = [...board];
+        b2[idx] = player;
+        const { score } = minimax(b2, "x");
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = { index: idx, score };
+        }
+      }
+    } else {
+      let bestScore = Infinity;
+      for (const idx of avail) {
+        const b2 = [...board];
+        b2[idx] = player;
+        const { score } = minimax(b2, "o");
+        if (score < bestScore) {
+          bestScore = score;
+          bestMove = { index: idx, score };
+        }
+      }
+    }
+
+    return bestMove;
+  };
+
+  const whoWon = (won: (string | null)[]) => {
+    const winnerLine = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ];
+    for (const [a, b, c] of winnerLine) {
+      if (won[a] && won[a] === won[b] && won[a] === won[c]) {
+        return { winner: won[a], line: [a, b, c] };
+      }
+    }
+    return { winner: null, line: null };
+  };
+
+  const handleClick = (i: number) => {
+    if (board[i] || finish) return;
+
+    const update = [...board];
+    update[i] = turn;
+    setBoard(update);
+
+    const { winner, line } = whoWon(update);
+    setResult(winner ? (winner === "x" ? "wonX" : "wonO") : "draw");
+
+    if (winner || update.every((cell) => cell !== null)) {
+      setRounds([...rounds, { win: winner }]);
+      setFinish(true);
+      setWinningLine(line);
+      return;
+    }
+
+    const whosNext = turn === "x" ? "o" : "x";
+    setTurn(whosNext);
+  };
+  useEffect(() => {
+    if (
+      mode === "pvc" &&
+      !finish &&
+      ((pick === "o" && turn === "x") || (pick === "x" && turn === "o"))
+    ) {
+      const timer = setTimeout(() => {
+        const { index } = minimax(board, turn);
+        if (index !== undefined) handleClick(index);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [turn, mode, board, finish]);
+  useEffect(() => {
+    if (!resModal) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
+        setResModal(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [resModal]);
+
+  const resetGame = () => {
+    setBoard(Array(9).fill(null));
+    setTurn("x");
+    setFinish(false);
+    setWinningLine(null);
+  };
+  const Quit = () => {
+    resetGame();
+    setResult(null);
+    setRounds([]);
+    setMode(null);
+  };
+  const restart = () => {
+    resetGame();
+    setResult(null);
+    setRounds([]);
+    setResModal(false);
+  };
+  const rematch = () => {
+    resetGame();
+  };
+  const xWins = rounds.filter((r) => r.win === "x").length;
+  const oWins = rounds.filter((r) => r.win === "o").length;
+  const ties = rounds.filter((r) => r.win === null).length;
+  return (
+    <div className="tikTakToe">
+      {mode === null && (
+        <section className={`first ${!mode ? "notactive" : ""}`}>
+          <Image
+            src={"/assets/logo.svg"}
+            width={71.97}
+            height={32}
+            alt="logo"
+          />
+          <div className="start">
+            <p>PICK PLAYER 1’S MARK</p>
+            <div className="pick">
+              <button
+                onClick={() => setPick("x")}
+                className={`${pick === "x" ? "active" : ""}`}
+              >
+                <Image
+                  src={"/assets/icon-x.svg"}
+                  width={32}
+                  height={32}
+                  alt="X"
+                ></Image>
+              </button>
+              <button
+                onClick={() => setPick("o")}
+                className={`${pick === "o" ? "active" : ""}`}
+              >
+                <Image
+                  src={"/assets/icon-o.svg"}
+                  width={32}
+                  height={32}
+                  alt="O"
+                ></Image>
+              </button>
+            </div>
+            <p className="firsts">REMEMBER : X GOES FIRST</p>
+          </div>
+          <div className="btns">
+            <button
+              onClick={() => {
+                setMode("pvc");
+                setTurn("x");
+              }}
+            >
+              NEW GAME (VS CPU)
+            </button>
+            <button
+              onClick={() => {
+                setMode("pvp");
+                setTurn("x");
+              }}
+            >
+              NEW GAME (VS PLAYER)
+            </button>
+          </div>
+        </section>
+      )}
+
+      {mode !== null && (
+        <section className={`second ${!mode ? "" : "active"}`}>
+          <div className="turn">
             <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+              src={"/assets/logo.svg"}
+              width={71.97}
+              height={32}
+              alt="logo"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <div className="whosTurn">
+              <Image
+                key={turn}
+                src={turn === "x" ? "/assets/icon-x.svg" : "/assets/icon-o.svg"}
+                alt={turn === "x" ? "x" : "o"}
+                width={20}
+                height={20}
+                className="icon"
+              />
+              <p>TURN</p>
+            </div>
+            <button className="restart" onClick={() => setResModal(true)}>
+              <Image
+                src={"/assets/icon-restart.svg"}
+                width={20}
+                height={20}
+                alt="restart"
+              />
+            </button>
+          </div>
+          <div className="board">
+            {board.map((b, i) => {
+              return (
+                <button
+                  key={i}
+                  className={`cells ${
+                    winningLine?.includes(i) ? "highlight" : ""
+                  }  ${b === "x" ? "blue" : b === "o" ? "yellow" : ""}`}
+                  onClick={() => handleClick(i)}
+                  onMouseEnter={() => setHoverIndex(i)}
+                  onMouseLeave={() => setHoverIndex(null)}
+                >
+                  {b ? (
+                    <Image
+                      src={`/assets/icon-${b}.svg`}
+                      width={64}
+                      height={64}
+                      alt={b}
+                    />
+                  ) : (
+                    hoverindex === i && (
+                      <Image
+                        src={`/assets/icon-${turn}-outline.svg`}
+                        width={64}
+                        height={64}
+                        alt={`${turn}-outline`}
+                        className="opacity-50"
+                      />
+                    )
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <div className="result">
+            <div className="col">
+              {mode === "pvp"
+                ? "X (Player 1)"
+                : pick === "x"
+                ? "X (YOU)"
+                : "X (CPU)"}
+              <p>{xWins}</p>
+            </div>
+            <div className="col">
+              TIES <p>{ties}</p>
+            </div>
+            <div className="col">
+              {mode === "pvp"
+                ? "O (Player 2)"
+                : pick === "o"
+                ? "O (YOU)"
+                : "O (CPU)"}
+              <p>{oWins}</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {finish && (
+        <section className="third">
+          <div className="overLay"></div>
+          <div className="modal">
+            {mode === "pvc" ? (
+              <p>
+                {result === "draw"
+                  ? ""
+                  : (pick === "o" && result === "wonO") ||
+                    (pick === "x" && result === "wonX")
+                  ? "YOU WON!"
+                  : "OH NO, YOU LOST…"}
+              </p>
+            ) : (
+              <p>
+                {result === "draw"
+                  ? ""
+                  : (pick === "x" && result === "wonX") ||
+                    (pick === "o" && result === "wonO")
+                  ? "PLAYER 1 WINS!"
+                  : "PLAYER 2 WINS!"}
+              </p>
+            )}
+
+            <div className="results">
+              {result !== "draw" && (
+                <Image
+                  width={64}
+                  height={64}
+                  src={
+                    result === "wonO"
+                      ? "/assets/icon-o.svg"
+                      : "/assets/icon-x.svg"
+                  }
+                  alt="winner"
+                />
+              )}
+              <p
+                className={
+                  result === "wonO"
+                    ? "yellow"
+                    : result === "wonX"
+                    ? "blue"
+                    : "silver"
+                }
+              >
+                {result === "wonX"
+                  ? "TAKES THE ROUND"
+                  : result === "wonO"
+                  ? "TAKES THE ROUND"
+                  : "ROUND TIED"}
+              </p>
+            </div>
+            <div className="btns">
+              <button onClick={Quit}>Quit</button>
+              <button
+                onClick={rematch}
+                className={
+                  result === "wonO"
+                    ? "yellow"
+                    : result === "wonX"
+                    ? "blue"
+                    : "silver"
+                }
+              >
+                Next Round
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+      {resModal && (
+        <section className="fourth">
+          <div className="overLay"></div>
+          <div className="modal" ref={modalRef}>
+            <h4>RESTART GAME?</h4>
+            <div className="btns">
+              <button onClick={() => setResModal(false)}>NO, CANCEL</button>
+              <button onClick={restart} className={"yellow"}>
+                YES, RESTART
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
