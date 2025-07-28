@@ -15,6 +15,7 @@ export default function Home() {
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
   const [hoverindex, setHoverIndex] = useState<number | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const [clickLocked, setClickLocked] = useState(false);
 
   const minimax = (
     board: (string | null)[],
@@ -78,8 +79,9 @@ export default function Home() {
   };
 
   const handleClick = (i: number) => {
-    if (board[i] || finish) return;
-
+    if (board[i] || finish || clickLocked) return;
+    setClickLocked(true);
+    setTimeout(() => setClickLocked(false), 200);
     const update = [...board];
     update[i] = turn;
     setBoard(update);
@@ -143,7 +145,6 @@ export default function Home() {
   const restart = () => {
     resetGame();
     setResult(null);
-    setRounds([]);
     setResModal(false);
   };
   const rematch = () => {
