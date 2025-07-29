@@ -14,8 +14,9 @@ export default function Home() {
   const [result, setResult] = useState<"wonX" | "draw" | "wonO" | null>(null);
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
   const [hoverindex, setHoverIndex] = useState<number | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
+  const [firstMoveMade, setFirstMoveMade] = useState(false);
   const [clickLocked, setClickLocked] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const minimax = (
     board: (string | null)[],
@@ -80,7 +81,7 @@ export default function Home() {
 
   const handleClick = (i: number, isUserClick = true) => {
     if (finish || board[i]) return;
-    if (isUserClick && clickLocked) return;
+    if (isUserClick && (clickLocked || !firstMoveMade)) return;
 
     if (isUserClick) {
       setClickLocked(true);
@@ -115,6 +116,7 @@ export default function Home() {
         if (index !== undefined) {
           handleClick(index, false);
           setClickLocked(false);
+          setFirstMoveMade(true);
         }
       }, 300);
       return () => clearTimeout(timer);
@@ -143,6 +145,7 @@ export default function Home() {
     setTurn("x");
     setFinish(false);
     setWinningLine(null);
+    setFirstMoveMade(pick === "x");
   };
   const Quit = () => {
     resetGame();
