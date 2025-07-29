@@ -79,7 +79,7 @@ export default function Home() {
   };
 
   const handleClick = (i: number) => {
-    if (board[i] || finish || clickLocked) return;
+    if (clickLocked || board[i] || finish) return;
     setClickLocked(true);
     setTimeout(() => setClickLocked(false), 200);
     const update = [...board];
