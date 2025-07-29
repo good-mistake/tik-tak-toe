@@ -112,8 +112,11 @@ export default function Home() {
     ) {
       const timer = setTimeout(() => {
         const { index } = minimax(board, turn);
-        if (index !== undefined) handleClick(index, false);
-      }, 500);
+        if (index !== undefined) {
+          handleClick(index, false);
+          setClickLocked(false);
+        }
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [turn, mode, board, finish]);
@@ -201,6 +204,9 @@ export default function Home() {
               onClick={() => {
                 setMode("pvc");
                 setTurn("x");
+                if (pick === "o") {
+                  setClickLocked(true);
+                }
               }}
             >
               NEW GAME (VS CPU)
