@@ -78,10 +78,15 @@ export default function Home() {
     return { winner: null, line: null };
   };
 
-  const handleClick = (i: number) => {
-    if (clickLocked || board[i] || finish) return;
-    setClickLocked(true);
-    setTimeout(() => setClickLocked(false), 200);
+  const handleClick = (i: number, isUserClick = true) => {
+    if (finish || board[i]) return;
+    if (isUserClick && clickLocked) return;
+
+    if (isUserClick) {
+      setClickLocked(true);
+      setTimeout(() => setClickLocked(false), 300);
+    }
+
     const update = [...board];
     update[i] = turn;
     setBoard(update);
@@ -107,7 +112,7 @@ export default function Home() {
     ) {
       const timer = setTimeout(() => {
         const { index } = minimax(board, turn);
-        if (index !== undefined) handleClick(index);
+        if (index !== undefined) handleClick(index, false);
       }, 500);
       return () => clearTimeout(timer);
     }
