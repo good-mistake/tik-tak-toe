@@ -81,9 +81,10 @@ export default function Home() {
 
   const handleClick = (i: number, isUserClick = true) => {
     if (finish || board[i]) return;
-    if (isUserClick && (clickLocked || !firstMoveMade)) return;
+    if (mode === "pvc" && isUserClick && (clickLocked || !firstMoveMade))
+      return;
 
-    if (isUserClick) {
+    if (isUserClick && mode === "pvc") {
       setClickLocked(true);
       setTimeout(() => setClickLocked(false), 300);
     }
