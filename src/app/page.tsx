@@ -207,6 +207,8 @@ export default function Home() {
               onClick={() => {
                 setMode("pvc");
                 setTurn("x");
+                setClickLocked(false);
+                setFirstMoveMade(pick === "x");
                 if (pick === "o") {
                   setClickLocked(true);
                 }
